@@ -1,11 +1,14 @@
 package com.sanver.trials.simplerestservicewithmysqltdd.controllers;
 
 import com.sanver.trials.simplerestservicewithmysqltdd.models.Student;
+import com.sanver.trials.simplerestservicewithmysqltdd.models.StudentDTO;
 import com.sanver.trials.simplerestservicewithmysqltdd.models.StudentRepository;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -15,29 +18,54 @@ public class StudentController {
     private StudentRepository repository;
 
     @GetMapping("{id}")
-    public Student getStudent(@PathVariable long id) {
-        return repository.findById(id).orElse(null);
+    public StudentDTO getStudent(@PathVariable long id) {
+        Student student = repository.findById(id).orElse(null);
+
+        if (student == null)
+            return null;
+
+        StudentDTO result = new StudentDTO();
+        BeanUtils.copyProperties(student, result);
+        return result;
     }
 
     @GetMapping
-    public List<Student> getStudents(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
-        return repository.findAll(PageRequest.of(page, size)).getContent();
+    public List<StudentDTO> getStudents(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        List<Student> studentList = repository.findAll(PageRequest.of(page, size)).getContent();
+
+        if (studentList == null)
+            return null;
+
+        List<StudentDTO> result = new ArrayList<>(studentList.size());
+        studentList.forEach(s -> {
+            StudentDTO studentDTO = new StudentDTO();
+            BeanUtils.copyProperties(s, studentDTO);
+            result.add(studentDTO);
+        });
+
+        return result;
     }
 
     @PostMapping
-    public Student postStudent(@RequestBody Student student) {
-        return repository.save(student);
+    public StudentDTO postStudent(@RequestBody StudentDTO studentDTO) {
+        Student student = new Student();
+        BeanUtils.copyProperties(studentDTO, student);
+        student = repository.save(student);
+        BeanUtils.copyProperties(student, studentDTO);
+        return studentDTO;
     }
 
     @PutMapping("{id}")
-    public Student putStudent(@PathVariable long id, @RequestBody Student student) {
-        if (student.getId() != id)
+    public StudentDTO putStudent(@PathVariable long id, @RequestBody StudentDTO studentDTO) {
+        Student student = repository.findById(id).orElse(null);
+
+        if (student == null)
             return null;
 
-        if (repository.findById(id).isPresent())
-            return repository.save(student);
-
-        return null;
+        BeanUtils.copyProperties(studentDTO, student);
+        student = repository.save(student);
+        BeanUtils.copyProperties(student, studentDTO);
+        return studentDTO;
     }
 
     @DeleteMapping("{id}")

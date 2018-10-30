@@ -1,11 +1,12 @@
 package com.sanver.trials.simplerestservicewithmysqltdd.controllers;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sanver.trials.simplerestservicewithmysqltdd.models.Student;
+import com.sanver.trials.simplerestservicewithmysqltdd.models.StudentDTO;
 import com.sanver.trials.simplerestservicewithmysqltdd.models.StudentRepository;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,7 +16,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDate;
-import java.util.Arrays;
 
 import static org.junit.Assert.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -55,8 +55,15 @@ public class StudentControllerTest {
         ResultActions perform = mockMvc.perform(get(String.format("/students/%d", id)));
         perform.andDo(print()).andExpect(status().isOk());
         String actualJson = perform.andReturn().getResponse().getContentAsString();
-        Student actual = objectMapper.readValue(actualJson, Student.class);
-        assertEquals(1, actual.getId());
+        StudentDTO actual = objectMapper.readValue(actualJson, StudentDTO.class);
+        assertNotNull(actual);
+    }
+
+    @Test
+    public void should_return_null_with_invalid_id() throws Exception {
+        long id = Long.MAX_VALUE;
+        ResultActions perform = mockMvc.perform(get(String.format("/students/%d", id)));
+        perform.andDo(print()).andExpect(status().isOk()).andExpect(content().string(""));
     }
 
     @Test
@@ -64,22 +71,18 @@ public class StudentControllerTest {
         ResultActions perform = mockMvc.perform(get("/students?page=2&size=3"));
         perform.andDo(print()).andExpect(status().isOk());
         String actualJson = perform.andReturn().getResponse().getContentAsString();
-        Student[] actual = objectMapper.readValue(actualJson, Student[].class);
-        assertArrayEquals(new long[]{7, 8, 9}, Arrays.stream(actual).mapToLong(Student::getId).toArray());
+        StudentDTO[] actual = objectMapper.readValue(actualJson, StudentDTO[].class);
+        assertEquals(3, actual.length);
     }
 
     @Test
     public void should_save_new_student() throws Exception {
-        Student student = new Student("Hatice", LocalDate.of(2002, 8, 1));
+        StudentDTO student = new StudentDTO("Hatice", LocalDate.of(2002, 8, 1));
         String studentJson = objectMapper.writeValueAsString(student);
         ResultActions perform = mockMvc.perform(post("/students").
                 contentType(MediaType.APPLICATION_JSON).content(studentJson));
         perform.andDo(print()).andExpect(status().isOk());
-        String actualJson = perform.andReturn().getResponse().getContentAsString();
-        Student actual = objectMapper.readValue(actualJson, Student.class);
-        student.setId(actual.getId());
-        String expectedJson = objectMapper.writeValueAsString(student);
-        perform.andExpect(content().json(expectedJson));
+        perform.andExpect(content().json(studentJson));
     }
 
     @Test
@@ -88,11 +91,28 @@ public class StudentControllerTest {
         assertNotNull(student);
         student.setBirthDate(student.getBirthDate().minusYears(3).minusMonths(2));
         student.setName(student.getName() + " updated");
-        String studentJson = objectMapper.writeValueAsString(student);
+        StudentDTO studentDTO = new StudentDTO();
+        BeanUtils.copyProperties(student, studentDTO);
+        String studentJson = objectMapper.writeValueAsString(studentDTO);
         ResultActions perform = mockMvc.perform(put(String.format("/students/%d", student.getId())).
                 contentType(MediaType.APPLICATION_JSON).content(studentJson));
         perform.andDo(print()).andExpect(status().isOk());
         perform.andExpect(content().json(studentJson));
+    }
+
+    @Test
+    public void should_not_update_with_invalid_id() throws Exception {
+        Student student = repository.findById(1L).orElse(null);
+        assertNotNull(student);
+        student.setBirthDate(student.getBirthDate().minusYears(3).minusMonths(2));
+        student.setName(student.getName() + " updated");
+        StudentDTO studentDTO = new StudentDTO();
+        BeanUtils.copyProperties(student, studentDTO);
+        String studentJson = objectMapper.writeValueAsString(studentDTO);
+        ResultActions perform = mockMvc.perform(put(String.format("/students/%d", Long.MAX_VALUE)).
+                contentType(MediaType.APPLICATION_JSON).content(studentJson));
+        perform.andDo(print()).andExpect(status().isOk());
+        perform.andExpect(content().string(""));
     }
 
     @Test
