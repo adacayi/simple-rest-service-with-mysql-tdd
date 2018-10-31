@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDate;
 
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -57,6 +58,7 @@ public class StudentControllerTest {
         String actualJson = perform.andReturn().getResponse().getContentAsString();
         StudentDTO actual = objectMapper.readValue(actualJson, StudentDTO.class);
         assertNotNull(actual);
+        assertThat(actual.getAge(),greaterThan(0));
     }
 
     @Test
